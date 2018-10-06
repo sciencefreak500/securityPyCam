@@ -4,6 +4,7 @@
 #https://www.pyimagesearch.com/2015/05/25/basic-motion-detection-and-tracking-with-python-and-opencv/
 
 from imutils.video import VideoStream
+import numpy as np
 import argparse
 import datetime
 import imutils
@@ -16,6 +17,13 @@ from threading import Thread
 countdownTriggered = False
 text = "Unoccupied"
 countdown = 0
+
+MIN_MATCH_COUNT = 6
+
+face_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_frontalface_default.xml')
+michael = cv2.imread('whitelisted/michael.jpg',0)
+
+sift = cv2.xfeatures2d.SIFT_create()
 
 def startCountdown():
     global countdownTriggered, text, countdown
@@ -126,17 +134,53 @@ while True:
         if countdownTriggered == False:
             t = Thread(target=startCountdown, args=())
             t.start()
+        break
 
-        # draw the text and timestamp on the frame
-    if text == "Occupied":        
-        cv2.putText(frame, "Room Status: {}".format(text), (10, 20),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-    else:
-        cv2.putText(frame, "Room Status: {}".format(text), (10, 20),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-    cv2.putText(frame, datetime.datetime.now().strftime("%A %d %B %Y %I:%M:%S%p"),
-            (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 0, 0), 1)
+        # detect face
 
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+    for (x,y,w,h) in faces:
+        #frame = cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        roi_gray = gray[y:y+h, x:x+w]
+        roi_color = frame[y:y+h, x:x+w]
+        #eyes = eye_cascade.detectMultiScale(roi_gray)
+        #for (ex,ey,ew,eh) in eyes:
+            #cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
+
+        # find the keypoints and descriptors with SIFT
+        kp1, des1 = sift.detectAndCompute(michael,None)
+        kp2, des2 = sift.detectAndCompute(roi_gray,None)
+
+        FLANN_INDEX_KDTREE = 0
+        index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 6)
+        search_params = dict(checks = 33)
+
+        flann = cv2.FlannBasedMatcher(index_params, search_params)
+
+        #matches = flann.knnMatch(np.asarray(des1,np.float32),np.asarray(des2,np.float32), 2)
+        try:
+            matches = flann.knnMatch(des1,des2,k=2)
+        except:
+            print('match failed')
+            matches = []
+        # store all the good matches as per Lowe's ratio test.
+        good = []
+        for m,n in matches:
+            if m.distance < 0.61*n.distance:
+                good.append(m)
+
+
+        #if facial match, turn off security cam
+        if len(good)>MIN_MATCH_COUNT:
+            cv2.putText(frame, "Michael Milord", (10, 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+            vs.stop() if args.get("video", None) is None else vs.release()
+            cv2.destroyAllWindows()
+            sys.exit()
+
+    
+
+    
     # show the frame and record if the user presses a key
     cv2.imshow("Security Feed", frame)
     #cv2.imshow("Thresh", thresh)
