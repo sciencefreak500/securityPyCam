@@ -1,4 +1,4 @@
-#SecurityPyCam
+# SecurityPyCam
 
 This projects turns your webcam into a security system for when there is motion.
 
@@ -15,7 +15,7 @@ All recordings are saved in the .avi format.
 
 
 
-###TO RUN THIS SCRIPT
+### TO RUN THIS SCRIPT
 ```
 pip install imutils
 ```
@@ -25,7 +25,7 @@ python3 wheel for Windows
 
 
 
-####To make it automatically turn on
+#### To make it automatically turn on
 
 If you are using Windows, go to the Task Scheduler. From there, you can make a 
 trigger when the computer is idle to trigger this script. I included a batch 
